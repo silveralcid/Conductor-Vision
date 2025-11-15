@@ -14,9 +14,9 @@ from capture.hand_tracker import HandTracker
 
 from controls.beat import BeatDetector
 from controls.volume import VolumeControl
+from controls.tempo import TempoControl
 
 from audio.audio_engine import AudioEngine
-from controls.tempo import TempoControl
 
 
 MODEL_PATH = os.path.abspath(
@@ -39,21 +39,26 @@ def main():
 
     VOLUME_TIMEOUT = 2.0   # seconds of no volume input → pause
 
-    # ------------------------------
-    # Control logic setup
-    # ------------------------------
+    # ---------------------------------------------------------
+    # NEW DEBUG FLAGS
+    # ---------------------------------------------------------
+    volume_enabled = True
+    tempo_enabled = True
+
+    # ---------------------------------------------------------
+    # Control logic
+    # ---------------------------------------------------------
     beat_detector = BeatDetector()
     volume_control = VolumeControl()
 
-    # ------------------------------
-    # Audio engine (load but don't auto-play)
-    # ------------------------------
+    # ---------------------------------------------------------
+    # Audio engine
+    # ---------------------------------------------------------
     audio = AudioEngine(MUSIC_PATH)
-    # Do not call audio.play() here — user controls start
 
-    # ------------------------------
-    # MediaPipe setup
-    # ------------------------------
+    # ---------------------------------------------------------
+    # MediaPipe
+    # ---------------------------------------------------------
     base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
 
     options = vision.HandLandmarkerOptions(
@@ -75,11 +80,10 @@ def main():
     prev_time = time.time()
     fps = 0
 
-    left_px = left_py = None
-    right_px = right_py = None
-
     bpm = None
     volume = None
+    left_px = left_py = None
+    right_px = right_py = None
 
     # ============================================================
     # MAIN LOOP
@@ -99,17 +103,26 @@ def main():
             else:
                 audio.play()
 
-        # S → Restart song
+        # S → Restart
         if key == ord("s"):
             audio.restart()
+
+        # ---------------------------------------------------------
+        # NEW: Debug toggles
+        # ---------------------------------------------------------
+        if key == ord("v"):
+            volume_enabled = not volume_enabled
+
+        if key == ord("t"):
+            tempo_enabled = not tempo_enabled
 
         # Quit
         if key == ord("q"):
             break
 
-        # ------------------------------
-        # Camera read
-        # ------------------------------
+        # ---------------------------------------------------------
+        # Camera + Hand Tracking
+        # ---------------------------------------------------------
         ret, frame = cap.read()
         if not ret:
             break
@@ -117,17 +130,12 @@ def main():
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
-        # ------------------------------
-        # Hand tracking
-        # ------------------------------
         hands_xy, raw_hands = tracker.detect(mp_image, frame)
 
         left_px, left_py = hands_xy.get("Left", (None, None))
         right_px, right_py = hands_xy.get("Right", (None, None))
 
-        # ------------------------------
-        # Buffer + Recording
-        # ------------------------------
+        # Normalize + record
         if raw_hands:
             normalized = normalize_landmarks(raw_hands[0])
             buffer.add(normalized)
@@ -135,37 +143,36 @@ def main():
 
         bufsize = len(buffer.get_sequence())
 
-        # ---------------------------------------------------
-        # BEAT DETECTION (RIGHT HAND)
-        # ---------------------------------------------------
+        # ---------------------------------------------------------
+        # BEAT DETECTION → BPM
+        # ---------------------------------------------------------
         if right_py is not None:
             bpm = beat_detector.update(right_py)
-        # Compute playback speed from BPM
+
+        # ---------------------------------------------------------
+        # TEMPO CONTROL
+        # ---------------------------------------------------------
         playback_rate = tempo_control.compute_rate(bpm)
-        audio.set_rate(playback_rate)
 
-        # ---------------------------------------------------
-        # VOLUME (Distance between hands)
-        # ---------------------------------------------------
+        if tempo_enabled:
+            audio.set_rate(playback_rate)
+
+        # ---------------------------------------------------------
+        # VOLUME CONTROL
+        # ---------------------------------------------------------
         volume = volume_control.compute(left_px, left_py, right_px, right_py)
-        if volume is not None:
+
+        if volume is not None and volume_enabled:
             audio.set_expressive_volume(volume)
 
-        # If volume is valid → update timestamp AND resume audio if needed
-        if volume is not None:
+        # Handle auto pause/resume (only when volume control enabled)
+        if volume is not None and volume_enabled:
             last_volume_time = time.time()
-            audio.set_expressive_volume(volume)
-
-            # Auto-resume when hands return
             if not audio.is_playing():
                 audio.play()
-
-        # If no volume input for too long → auto-pause
-        elif time.time() - last_volume_time > VOLUME_TIMEOUT:
+        elif (time.time() - last_volume_time > VOLUME_TIMEOUT) and volume_enabled:
             if audio.is_playing():
                 audio.pause()
-
-
 
         # ====================================================
         # OVERLAY
@@ -207,17 +214,26 @@ def main():
         music_status = "PLAYING" if audio.is_playing() else "PAUSED"
         cv2.putText(frame, f"MUSIC: {music_status}", (10, 240),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,200,255), 2)
-        
-        if time.time() - last_volume_time > VOLUME_TIMEOUT:
-            status = "AUTO-PAUSED"
-        else:
-            status = "PLAYING"
 
         # Playback Rate
         cv2.putText(frame, f"RATE: {playback_rate:.2f}x", (10, 270),
             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,200,0), 2)
 
-        # FPS Calculation
+        # ====================================================
+        # NEW DEBUG FLAGS
+        # ====================================================
+        cv2.putText(frame, f"VOLCTL: {'ON' if volume_enabled else 'OFF'}",
+                    (10, 300),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                    (0,255,180) if volume_enabled else (80,80,80), 2)
+
+        cv2.putText(frame, f"TEMPOCTL: {'ON' if tempo_enabled else 'OFF'}",
+                    (10, 330),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                    (255,180,0) if tempo_enabled else (80,80,80), 2)
+
+
+        # FPS update
         now = time.time()
         fps = 1.0 / (now - prev_time)
         prev_time = now

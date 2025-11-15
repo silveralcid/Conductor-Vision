@@ -33,6 +33,9 @@ MUSIC_PATH = os.path.abspath(
 
 def main():
 
+    last_volume_time = time.time()
+    VOLUME_TIMEOUT = 1.0   # seconds of no volume input → pause
+
     # ------------------------------
     # Control logic setup
     # ------------------------------
@@ -142,6 +145,22 @@ def main():
         if volume is not None:
             audio.set_expressive_volume(volume)
 
+        # If volume is valid → update timestamp AND resume audio if needed
+        if volume is not None:
+            last_volume_time = time.time()
+            audio.set_expressive_volume(volume)
+
+            # Auto-resume when hands return
+            if not audio.is_playing():
+                audio.play()
+
+        # If no volume input for too long → auto-pause
+        elif time.time() - last_volume_time > VOLUME_TIMEOUT:
+            if audio.is_playing():
+                audio.pause()
+
+
+
         # ====================================================
         # OVERLAY
         # ====================================================
@@ -182,6 +201,12 @@ def main():
         music_status = "PLAYING" if audio.is_playing() else "PAUSED"
         cv2.putText(frame, f"MUSIC: {music_status}", (10, 240),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,200,255), 2)
+        
+        if time.time() - last_volume_time > VOLUME_TIMEOUT:
+            status = "AUTO-PAUSED"
+        else:
+            status = "PLAYING"
+
 
         # FPS Calculation
         now = time.time()

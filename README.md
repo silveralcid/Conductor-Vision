@@ -52,25 +52,13 @@ All inference runs through a FastAPI backend with Prometheus metrics and a Grafa
 
 Conductor Vision builds on existing research in gesture-based musical interaction, conductor motion analysis, and real-time CV models. The following works informed the design:
 
-**MUSE: A Music Conducting Recognition System**
-University of Nevada
-[https://www.cse.unr.edu/~fredh/papers/conf/173-mamcrs/paper.pdf](https://www.cse.unr.edu/~fredh/papers/conf/173-mamcrs/paper.pdf)
-Inspired the idea of mapping conductor motion patterns to musical parameters and using lightweight models for gesture classification.
+**[MUSE: A Music Conducting Recognition System](https://www.cse.unr.edu/~fredh/papers/conf/173-mamcrs/paper.pdf)** - Inspired the idea of mapping conductor motion patterns to musical parameters and using lightweight models for gesture classification.
 
-**Hand Gestures in Music Production**
-Berndt et al.
-[http://www.cemfi.de/wp-content/papercite-data/pdf/berndt-2016-hand-gestures.pdf](http://www.cemfi.de/wp-content/papercite-data/pdf/berndt-2016-hand-gestures.pdf)
-Provided gesture vocabularies and insights on intuitive mappings between hand motion and musical controls such as tempo, dynamics, and expression.
+**[Hand Gestures in Music Production](http://www.cemfi.de/wp-content/papercite-data/pdf/berndt-2016-hand-gestures.pdf)** - Provided gesture vocabularies and insights on intuitive mappings between hand movement and musical controls such as tempo, dynamics, and expression.
 
-**Real-Time Musical Conducting Gesture Recognition**
-Chin-Shyurng et al.
-[https://www.mdpi.com/2076-3417/9/3/528](https://www.mdpi.com/2076-3417/9/3/528)
-Informed the beat-gesture detection approach and continuous tempo estimation from periodic hand motion.
+**[Real-Time Musical Conducting Gesture Recognition](https://www.mdpi.com/2076-3417/9/3/528)** - Informed the beat-gesture detection approach and continuous tempo estimation from periodic hand motion.
 
-**MediaPipe Hands: On-device Real-time Hand Tracking**
-Zhang et al., Google Research
-[https://arxiv.org/pdf/2006.10214](https://arxiv.org/pdf/2006.10214)
-Provides the core CV algorithm used for real-time hand landmark detection enabling the entire interaction system.
+**[MediaPipe Hands: On-device Real-time Hand Tracking](https://arxiv.org/pdf/2006.10214)** - Provides the core CV algorithm used for real-time hand landmark detection, enabling the entire interaction system.
 
 Each paper helped shape the core idea: musical conducting gestures can be translated into real-time control signals using low-latency CV pipelines and lightweight ML models.
 

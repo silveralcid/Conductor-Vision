@@ -4,14 +4,14 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import os
 
-# model_path = os.path.join(
-#     os.path.dirname(__file__),
-#     "models",
-#     "hand_landmarker.task"
-# )
-
-model_path = r"C:\mediapipe_test\hand_landmarker.task"
-
+model_path = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",    
+        "models",
+        "hand_landmarker.task"
+    )
+)
 
 def main():
     base_options = python.BaseOptions(model_asset_path=model_path)

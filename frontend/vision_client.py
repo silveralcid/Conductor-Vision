@@ -40,10 +40,13 @@ def main():
     VOLUME_TIMEOUT = 2.0   # seconds of no volume input → pause
 
     # ---------------------------------------------------------
-    # NEW DEBUG FLAGS
+    # DEBUG FLAGS + DEFAULTS
     # ---------------------------------------------------------
     volume_enabled = True
     tempo_enabled = True
+
+    DEFAULT_VOLUME = 0.5     # expressive baseline
+    DEFAULT_RATE = 1.0       # normal track speed
 
     # ---------------------------------------------------------
     # Control logic
@@ -108,13 +111,18 @@ def main():
             audio.restart()
 
         # ---------------------------------------------------------
-        # NEW: Debug toggles
+        # DEBUG TOGGLES
         # ---------------------------------------------------------
         if key == ord("v"):
             volume_enabled = not volume_enabled
+            # On toggle → snap to default volume
+            audio.set_expressive_volume(DEFAULT_VOLUME)
+            last_volume_time = time.time()
 
         if key == ord("t"):
             tempo_enabled = not tempo_enabled
+            # On toggle → restore default rate
+            audio.set_rate(DEFAULT_RATE)
 
         # Quit
         if key == ord("q"):
@@ -156,23 +164,29 @@ def main():
 
         if tempo_enabled:
             audio.set_rate(playback_rate)
+        else:
+            audio.set_rate(DEFAULT_RATE)
 
         # ---------------------------------------------------------
         # VOLUME CONTROL
         # ---------------------------------------------------------
         volume = volume_control.compute(left_px, left_py, right_px, right_py)
 
-        if volume is not None and volume_enabled:
+        if volume_enabled and volume is not None:
             audio.set_expressive_volume(volume)
-
-        # Handle auto pause/resume (only when volume control enabled)
-        if volume is not None and volume_enabled:
             last_volume_time = time.time()
+
             if not audio.is_playing():
                 audio.play()
-        elif (time.time() - last_volume_time > VOLUME_TIMEOUT) and volume_enabled:
-            if audio.is_playing():
-                audio.pause()
+
+        elif volume_enabled:
+            # If no input for too long → auto pause
+            if time.time() - last_volume_time > VOLUME_TIMEOUT:
+                if audio.is_playing():
+                    audio.pause()
+        else:
+            # Volume control OFF → enforce default baseline
+            audio.set_expressive_volume(DEFAULT_VOLUME)
 
         # ====================================================
         # OVERLAY
@@ -189,7 +203,6 @@ def main():
         cv2.putText(frame, f"R: {right_px, right_py}", (10, 120),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
 
-        # Recording indicator
         status_color = (0,0,255) if recorder.recording else (100,100,100)
         cv2.putText(frame, "REC", (10,150),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
@@ -202,7 +215,7 @@ def main():
             cv2.putText(frame, "BPM: --", (10, 180),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100,100,100), 2)
 
-        # Volume
+        # Volume (raw gesture)
         if volume is not None:
             cv2.putText(frame, f"VOL: {volume:.2f}", (10, 210),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,150,255), 2)
@@ -210,18 +223,16 @@ def main():
             cv2.putText(frame, "VOL: --", (10, 210),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100,100,100), 2)
 
-        # Music Status
+        # MUSIC STATE
         music_status = "PLAYING" if audio.is_playing() else "PAUSED"
         cv2.putText(frame, f"MUSIC: {music_status}", (10, 240),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,200,255), 2)
 
-        # Playback Rate
+        # RATE
         cv2.putText(frame, f"RATE: {playback_rate:.2f}x", (10, 270),
             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,200,0), 2)
 
-        # ====================================================
-        # NEW DEBUG FLAGS
-        # ====================================================
+        # DEBUG FLAGS
         cv2.putText(frame, f"VOLCTL: {'ON' if volume_enabled else 'OFF'}",
                     (10, 300),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7,
@@ -231,7 +242,6 @@ def main():
                     (10, 330),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                     (255,180,0) if tempo_enabled else (80,80,80), 2)
-
 
         # FPS update
         now = time.time()

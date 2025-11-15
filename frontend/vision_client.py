@@ -70,6 +70,10 @@ def main():
 
     cap = cv2.VideoCapture(0)
 
+    prev_time = time.time()
+    fps = 0
+
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -82,30 +86,76 @@ def main():
         # Run hand landmark detection
         result = landmarker.detect(mp_image)
 
+        left_px = left_py = None
+        right_px = right_py = None
+
+
+        left_px = left_py = None
+        right_px = right_py = None
+
         if result.hand_landmarks:
-            all_hands = []
-            for hand in result.hand_landmarks:
-                landmarks = [(lm.x, lm.y, lm.z) for lm in hand]
-                all_hands.append(landmarks)
+            hands_xy = {}
 
-            # Process only first hand for now
-            raw_landmarks = all_hands[0]
+            # MediaPipe returns both:
+            # - result.hand_landmarks  → landmark data
+            # - result.handedness      → "Left" or "Right"
+            for idx, hand in enumerate(result.hand_landmarks):
 
-            # Normalize
-            normalized = normalize_landmarks(raw_landmarks)
+                # Normalize landmarks for ML
+                raw_landmarks = [(lm.x, lm.y, lm.z) for lm in hand]
+                normalized = normalize_landmarks(raw_landmarks)
+                buffer.add(normalized)
 
-            # Add to buffer
-            buffer.add(normalized)
+                # Convert wrist to pixel
+                wrist = raw_landmarks[0]
+                h, w, _ = frame.shape
+                px = int(wrist[0] * w)
+                py = int(wrist[1] * h)
 
-            # Extract normalized wrist for drawing
-            wrist = raw_landmarks[0]
-            h, w, _ = frame.shape
-            px = int(wrist[0] * w)
-            py = int(wrist[1] * h)
-            cv2.circle(frame, (px, py), 10, (0, 255, 0), -1)
+                # Label: "Left" or "Right"
+                label = result.handedness[idx][0].category_name  # guaranteed by MediaPipe
+                hands_xy[label] = (px, py)
 
+                # Draw wrist marker
+                cv2.circle(frame, (px, py), 10,
+                        (0, 255, 0) if label == "Left" else (255, 0, 0),
+                        -1)
+
+            # Assign after loop
+            left_px, left_py = hands_xy.get("Left", (None, None))
+            right_px, right_py = hands_xy.get("Right", (None, None))
+
+            # Buffer size (if sequence exists)
             sequence = buffer.get_sequence()
+            bufsize = len(sequence)
 
+            # Debug overlay text
+            cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+
+            cv2.putText(frame, f"Buffer: {bufsize}", (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
+
+            # Left hand coords
+            if left_px is not None:
+                cv2.putText(frame, f"L: ({left_px}, {left_py})", (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+            else:
+                cv2.putText(frame, "L: ---", (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+            # Right hand coords
+            if right_px is not None:
+                cv2.putText(frame, f"R: ({right_px}, {right_py})", (10, 120),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+            else:
+                cv2.putText(frame, "R: ---", (10, 120),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+
+        current_time = time.time()
+        fps = 1.0 / (current_time - prev_time)
+        prev_time = current_time
 
         cv2.imshow("Conductor Vision - Wrist Tracking", frame)
 

@@ -36,6 +36,10 @@ MUSIC_PATH = os.path.abspath(
 
 def main():
 
+    cv2.namedWindow("Conductor Vision", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Conductor Vision", 1280, 720)
+
+
     last_volume_time = time.time()
     tempo_control = TempoControl()
 

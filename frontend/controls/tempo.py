@@ -7,8 +7,8 @@ class TempoControl:
         self,
         min_bpm=80,
         max_bpm=160,
-        min_rate=0.90,
-        max_rate=1.10,
+        min_rate=0.75,
+        max_rate=1.25,
         deadband=0.002,  
         update_interval=0.15
     ):

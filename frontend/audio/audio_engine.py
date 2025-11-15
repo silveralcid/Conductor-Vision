@@ -4,10 +4,7 @@ import threading
 
 
 class AudioEngine:
-    def __init__(self, filepath: str, ramp_time=0.35):
-        """
-        ramp_time = seconds for fade-ins, fade-outs, volume transitions
-        """
+    def __init__(self, filepath: str, ramp_time=10):
         self.filepath = filepath
         self.RAMP_TIME = ramp_time
 
@@ -22,10 +19,11 @@ class AudioEngine:
 
         # State
         self.ready = False
-        self.target_volume = 100       # 0–100 target
+        self.target_volume = 100
         self.current_volume = 100
         self.last_rate = 1.0
         self.running = True
+        self.is_fading = False     # NEW
 
         # Threading
         self.ramp_thread = None
@@ -36,16 +34,16 @@ class AudioEngine:
     # =========================================================
 
     def _start_ramp(self, new_target: int):
-        """Trigger new ramp animation for volume."""
+        """Trigger new ramp animation."""
         with self.ramp_lock:
             self.target_volume = max(0, min(100, int(new_target)))
+            self.is_fading = True
 
         if self.ramp_thread is None or not self.ramp_thread.is_alive():
             self.ramp_thread = threading.Thread(target=self._ramp_loop, daemon=True)
             self.ramp_thread.start()
 
     def _ramp_loop(self):
-        """Smoothly transition current_volume → target_volume."""
         steps = max(1, int(self.RAMP_TIME / 0.02))
 
         for _ in range(steps):
@@ -57,97 +55,97 @@ class AudioEngine:
                 if abs(diff) < 1:
                     break
 
-                # Smooth quarter-step toward target
                 self.current_volume += diff * 0.25
-
                 vol = max(0, min(100, int(self.current_volume)))
                 self.player.audio_set_volume(vol)
 
             time.sleep(0.02)
 
-        # Snap to exact target
+        # Final snap
         self.player.audio_set_volume(int(self.target_volume))
         self.current_volume = self.target_volume
 
+        with self.ramp_lock:
+            self.is_fading = False
+
     # =========================================================
-    # BASIC PLAYBACK CONTROLS
+    # BASIC CONTROLS
     # =========================================================
 
     def play(self):
-        """Fade in if starting/resuming."""
+        """Smooth fade-in."""
+        # Always reset volume to 0 BEFORE playing
+        self.player.audio_set_volume(0)
+        self.current_volume = 0
+
         if not self.ready:
             self.player.play()
             time.sleep(0.1)
             self.player.set_rate(self.last_rate)
-            self.player.audio_set_volume(int(self.current_volume))
             self.ready = True
         else:
             self.player.play()
 
-        # Fade in toward the target
+        # fade to target
         self._start_ramp(self.target_volume)
 
     def pause(self):
-        """Fade out to 0, then pause."""
+        """Fade to 0, THEN pause cleanly."""
         self._start_ramp(0)
 
-        def _pause():
-            time.sleep(self.RAMP_TIME)
+        def finish_pause():
+            # Wait until volume reaches 0
+            while True:
+                with self.ramp_lock:
+                    if self.current_volume <= 1:   # effectively silent
+                        break
+                time.sleep(0.02)
+
+            # Now safe to pause — no audible click
             self.player.pause()
 
-        threading.Thread(target=_pause, daemon=True).start()
+        threading.Thread(target=finish_pause, daemon=True).start()
+
 
     def restart(self):
-        """Restart from zero with a fade-in."""
+        """Restart track from time 0 with a fade-in."""
         self.player.stop()
         self.ready = False
 
-        # Reload fresh looped media
         self.media = self.instance.media_new(self.filepath)
         self.media.add_option(":input-repeat=-1")
         self.player.set_media(self.media)
 
+        # Always start silent
+        self.player.audio_set_volume(0)
+        self.current_volume = 0
+
         self.player.play()
         time.sleep(0.1)
 
-        # Restore rate + fade in
         self.player.set_rate(self.last_rate)
         self._start_ramp(self.target_volume)
 
         self.ready = True
 
     # =========================================================
-    # EXPRESSIVE VOLUME CONTROL
+    # EXPRESSIVE VOLUME
     # =========================================================
 
     def set_expressive_volume(self, gesture_value: float):
-        """
-        gesture_value: 0.0 → 1.0
-        Maps to:
-            0.0 → ~35%
-            0.5 → ~70%
-            1.0 → 100%
-        """
         gesture_value = max(0.0, min(1.0, gesture_value))
-
-        multiplier = 0.5 + gesture_value      # → 0.5→1.5
-        raw = multiplier * 70                # → 35→105 approx
+        multiplier = 0.5 + gesture_value
+        raw = multiplier * 70
         new_vol = max(35, min(100, int(raw)))
-
         self._start_ramp(new_vol)
 
     # =========================================================
-    # TEMPO CONTROL (rate)
+    # RATE CONTROL
     # =========================================================
 
     def set_rate(self, rate: float):
-        """
-        Tempo changes are immediate (no ramp).
-        Using VLC-safe range: 0.5x – 2.0x
-        """
         rate = max(0.5, min(2.0, rate))
         self.last_rate = rate
-
         try:
             self.player.set_rate(rate)
         except:

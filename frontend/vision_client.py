@@ -16,6 +16,7 @@ from controls.beat import BeatDetector
 from controls.volume import VolumeControl
 
 from audio.audio_engine import AudioEngine
+from controls.tempo import TempoControl
 
 
 MODEL_PATH = os.path.abspath(
@@ -34,7 +35,9 @@ MUSIC_PATH = os.path.abspath(
 def main():
 
     last_volume_time = time.time()
-    VOLUME_TIMEOUT = 1.0   # seconds of no volume input → pause
+    tempo_control = TempoControl()
+
+    VOLUME_TIMEOUT = 2.0   # seconds of no volume input → pause
 
     # ------------------------------
     # Control logic setup
@@ -137,6 +140,9 @@ def main():
         # ---------------------------------------------------
         if right_py is not None:
             bpm = beat_detector.update(right_py)
+        # Compute playback speed from BPM
+        playback_rate = tempo_control.compute_rate(bpm)
+        audio.set_rate(playback_rate)
 
         # ---------------------------------------------------
         # VOLUME (Distance between hands)
@@ -207,6 +213,9 @@ def main():
         else:
             status = "PLAYING"
 
+        # Playback Rate
+        cv2.putText(frame, f"RATE: {playback_rate:.2f}x", (10, 270),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,200,0), 2)
 
         # FPS Calculation
         now = time.time()

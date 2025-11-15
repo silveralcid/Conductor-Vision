@@ -1,21 +1,33 @@
 # conductor-vision/frontend/controls/tempo.py
 
+import time
+
 class TempoControl:
-    def __init__(self, min_bpm=80, max_bpm=160, min_rate=0.8, max_rate=1.2):
+    def __init__(
+        self,
+        min_bpm=80,
+        max_bpm=160,
+        min_rate=0.90,
+        max_rate=1.10,
+        deadband=0.002,  
+        update_interval=0.15
+    ):
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
         self.min_rate = min_rate
         self.max_rate = max_rate
 
-        self.last_rate = 1.0   # fallback when BPM missing
+        self.deadband = deadband
+        self.update_interval = update_interval
+
+        self.last_rate = 1.0
+        self.last_vlc_update_time = 0
 
     def compute_rate(self, bpm):
-        """
-        Convert gesture BPM into playback speed inside a safe expressive range.
-        """
+        now = time.time()
 
+        # keep previous if no BPM
         if bpm is None:
-            # no BPM detected → return last stable rate
             return self.last_rate
 
         # clamp BPM
@@ -24,11 +36,21 @@ class TempoControl:
         # map BPM → 0..1
         t = (bpm - self.min_bpm) / (self.max_bpm - self.min_bpm)
 
-        # map into playback speed range
+        # map to playback rate
         rate = self.min_rate + t * (self.max_rate - self.min_rate)
 
-        # smooth a bit (optional)
-        smoothed = 0.2 * rate + 0.8 * self.last_rate
+        # smooth
+        smoothed = 0.35 * rate + 0.65 * self.last_rate
 
+        # deadband
+        if abs(smoothed - self.last_rate) < self.deadband:
+            return self.last_rate
+
+        # throttle
+        if now - self.last_vlc_update_time < self.update_interval:
+            return self.last_rate
+
+        # accept new rate
+        self.last_vlc_update_time = now
         self.last_rate = smoothed
         return smoothed

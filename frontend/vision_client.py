@@ -17,6 +17,8 @@ from controls.volume import VolumeControl
 from controls.tempo import TempoControl
 
 from audio.audio_engine import AudioEngine
+from overlay.overlay import draw_overlay
+
 
 
 MODEL_PATH = os.path.abspath(
@@ -188,60 +190,25 @@ def main():
             # Volume control OFF → enforce default baseline
             audio.set_expressive_volume(DEFAULT_VOLUME)
 
-        # ====================================================
-        # OVERLAY
-        # ====================================================
-        cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+       # ====================================================
+       # OVERLAY (refactored)
+       # ====================================================
+        draw_overlay(frame, {
+            "fps": fps,
+            "bufsize": bufsize,
+            "left_px": left_px, "left_py": left_py,
+            "right_px": right_px, "right_py": right_py,
+            "recorder": recorder,
+            "bpm": bpm,
+            "volume": volume,
+            "music_status": "PLAYING" if audio.is_playing() else "PAUSED",
+            "rate": playback_rate,
+            "volume_enabled": volume_enabled,
+            "tempo_enabled": tempo_enabled,
+            "last_volume_time": last_volume_time,
+            "volume_timeout": VOLUME_TIMEOUT,
+        })
 
-        cv2.putText(frame, f"Buffer: {bufsize}", (10, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
-
-        cv2.putText(frame, f"L: {left_px, left_py}", (10, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
-
-        cv2.putText(frame, f"R: {right_px, right_py}", (10, 120),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
-
-        status_color = (0,0,255) if recorder.recording else (100,100,100)
-        cv2.putText(frame, "REC", (10,150),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
-
-        # BPM
-        if bpm is not None:
-            cv2.putText(frame, f"BPM: {bpm:.1f}", (10, 180),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,200,255), 2)
-        else:
-            cv2.putText(frame, "BPM: --", (10, 180),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100,100,100), 2)
-
-        # Volume (raw gesture)
-        if volume is not None:
-            cv2.putText(frame, f"VOL: {volume:.2f}", (10, 210),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,150,255), 2)
-        else:
-            cv2.putText(frame, "VOL: --", (10, 210),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100,100,100), 2)
-
-        # MUSIC STATE
-        music_status = "PLAYING" if audio.is_playing() else "PAUSED"
-        cv2.putText(frame, f"MUSIC: {music_status}", (10, 240),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,200,255), 2)
-
-        # RATE
-        cv2.putText(frame, f"RATE: {playback_rate:.2f}x", (10, 270),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,200,0), 2)
-
-        # DEBUG FLAGS
-        cv2.putText(frame, f"VOLCTL: {'ON' if volume_enabled else 'OFF'}",
-                    (10, 300),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                    (0,255,180) if volume_enabled else (80,80,80), 2)
-
-        cv2.putText(frame, f"TEMPOCTL: {'ON' if tempo_enabled else 'OFF'}",
-                    (10, 330),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                    (255,180,0) if tempo_enabled else (80,80,80), 2)
 
         # FPS update
         now = time.time()

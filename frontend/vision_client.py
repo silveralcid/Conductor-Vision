@@ -7,7 +7,7 @@ import os
 model_path = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
-        "..",    
+        "..",
         "models",
         "hand_landmarker.task"
     )
@@ -23,6 +23,7 @@ def main():
         min_hand_presence_confidence=0.5,
         min_tracking_confidence=0.5
     )
+
     landmarker = vision.HandLandmarker.create_from_options(options)
 
     cap = cv2.VideoCapture(0)
@@ -40,15 +41,22 @@ def main():
         result = landmarker.detect(mp_image)
 
         if result.hand_landmarks:
+            all_hands = []
             for hand in result.hand_landmarks:
-                # wrist = landmark index 0
-                wrist = hand[0]
-                h, w, _ = frame.shape
-                px = int(wrist.x * w)
-                py = int(wrist.y * h)
+                landmarks = []
+                for lm in hand:
+                    landmarks.append((lm.x, lm.y, lm.z))
+                all_hands.append(landmarks)
 
-                # Draw wrist dot
-                cv2.circle(frame, (px, py), 10, (0, 255, 0), -1)
+            # ======= EXTRACT WRIST (Landmark 0) =======
+            wrist = all_hands[0][0]  # (x, y, z)
+
+            h, w, _ = frame.shape
+            px = int(wrist[0] * w)
+            py = int(wrist[1] * h)
+
+            # Draw wrist dot
+            cv2.circle(frame, (px, py), 10, (0, 255, 0), -1)
 
         cv2.imshow("Conductor Vision - Wrist Tracking", frame)
 

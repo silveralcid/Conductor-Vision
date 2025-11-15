@@ -96,3 +96,26 @@ class AudioEngine:
 
     def is_playing(self) -> bool:
         return self.player.is_playing() == 1
+
+
+    def set_expressive_volume(self, gesture_value: float):
+        """
+        gesture_value: 0.0 → 1.0 (from vision model)
+        baseline: 0.5 = neutral music loudness
+
+        Mapping:
+        0.0 → 0.5x loudness
+        0.5 → 1.0x loudness
+        1.0 → 1.5x loudness
+        """
+        gesture_value = max(0.0, min(1.0, gesture_value))
+
+        # multiplier from ~0.5 → ~1.5
+        multiplier = 0.5 + gesture_value
+
+        # map to VLC scale (0–100), baseline ~70
+        raw_volume = int(multiplier * 70)
+        raw_volume = max(35, min(100, raw_volume))   # safe, no silence
+
+        self.current_volume = raw_volume
+        self.player.audio_set_volume(raw_volume)

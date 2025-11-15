@@ -139,6 +139,8 @@ def main():
         # VOLUME (Distance between hands)
         # ---------------------------------------------------
         volume = volume_control.compute(left_px, left_py, right_px, right_py)
+        if volume is not None:
+            audio.set_expressive_volume(volume)
 
         # ====================================================
         # OVERLAY

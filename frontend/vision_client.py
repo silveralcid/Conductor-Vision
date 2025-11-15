@@ -5,6 +5,11 @@ from mediapipe.tasks.python import vision
 import os
 from collections import deque
 import time
+from mediapipe.framework.formats import landmark_pb2
+
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+
 
 model_path = os.path.abspath(
     os.path.join(
@@ -98,18 +103,38 @@ def main():
 
             for idx, hand in enumerate(result.hand_landmarks):
 
+                # Convert to raw landmark list
                 raw_landmarks = [(lm.x, lm.y, lm.z) for lm in hand]
+
+                # Normalize + buffer
                 normalized = normalize_landmarks(raw_landmarks)
                 buffer.add(normalized)
 
-                wrist = raw_landmarks[0]
+                # Wrist → pixel coords
                 h, w, _ = frame.shape
+                wrist = raw_landmarks[0]
                 px = int(wrist[0] * w)
                 py = int(wrist[1] * h)
 
+                # Left/Right label
                 label = result.handedness[idx][0].category_name
                 hands_xy[label] = (px, py)
 
+                # Convert Task landmarks → Solutions NormalizedLandmarkList
+                lm_list = landmark_pb2.NormalizedLandmarkList()
+                for lm in hand:
+                    lm_list.landmark.add(x=lm.x, y=lm.y, z=lm.z)
+
+                # Draw skeleton
+                mp_drawing.draw_landmarks(
+                    frame,
+                    lm_list,
+                    mp_hands.HAND_CONNECTIONS,
+                    mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
+                    mp_drawing.DrawingSpec(color=(255,255,255), thickness=2),
+                )
+
+                # Optional: Draw bigger wrist dot for clarity
                 cv2.circle(
                     frame,
                     (px, py),
@@ -117,6 +142,7 @@ def main():
                     (0, 255, 0) if label == "Left" else (255, 0, 0),
                     -1
                 )
+
 
             left_px, left_py = hands_xy.get("Left", (None, None))
             right_px, right_py = hands_xy.get("Right", (None, None))

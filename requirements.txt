@@ -1,0 +1,11 @@
+mediapipe
+opencv-python
+numpy
+python-vlc
+fastapi
+uvicorn
+scikit-learn
+prometheus-fastapi-instrumentator
+pydantic
+requests
+python-dotenv

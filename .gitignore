@@ -1,26 +1,21 @@
 # ===========================================
-# Python Gitignore
+# Python
 # ===========================================
-
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
-# Virtual environments
+# Virtual Environments
 .env
 .venv
 env/
 venv/
 ENV/
-venv.bak/
 .conda/
 .python-version
 
-# Distribution / packaging
+# Packaging
 build/
 develop-eggs/
 dist/
@@ -44,7 +39,7 @@ MANIFEST
 *.manifest
 *.spec
 
-# Unit test / coverage reports
+# Unit Test / Coverage
 htmlcov/
 .tox/
 .nox/
@@ -59,85 +54,48 @@ coverage.xml
 .pytest_cache/
 test-results/
 
-# Translations
-*.mo
-*.pot
+# Databases
+*.db
+*.sqlite
+*.sqlite3
 
-# Django
+# Django / Flask / FastAPI
 *.log
 local_settings.py
+instance/
+.webassets-cache
 db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
 static_root/
 
-# Flask
-instance/
-.webassets-cache
-
-# FastAPI / Starlette
-*.db
-*.sqlite
-*.sqlite3
-
-# Scrapy
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-build/
-target/
-_site/
-*.doctree
-*.pickle
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
+# Jupyter
 .ipynb_checkpoints
 *.ipynb
 profile_default/
 ipython_config.py
 
-# pyenv
+# Pyenv / Pipenv / Poetry
 .python-version
-
-# pipenv
 Pipfile.lock
-
-# poetry
 poetry.lock
 .cache/pypoetry/
 .poetry/
-
-# PEP 582 (e.g. used by pdm)
 __pypackages__/
 
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath
-*.sage.py
-
-# Environments
+# Misc env
 .envrc
-.env
-.venv
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# IDE / Editor settings
+# Editors
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
+.spyproject/
+.ropeproject/
 
-# macOS / Windows / Linux
+# System
 .DS_Store
 Thumbs.db
 ehthumbs.db
@@ -152,40 +110,6 @@ $RECYCLE.BIN/
 *.out
 *.err
 
-# Type checking / linting
-.mypy_cache/
-.dmypy.json
-.pyre/
-.pytype/
-ruff_cache/
-flake8.log
-
-# Compiled docs / site builds
-public/
-_site/
-build/
-
-# Coverage / Reports
-coverage/
-reports/
-test-output/
-junit.xml
-
-# Temporary files
-*.tmp
-*.bak
-*.swp
-*.swo
-
-# Editors / DevTools
-.vscode/
-.idea/
-.spyproject/
-.ropeproject/
-.history/
-.pyre/
-.cache/
-
 # Docker / CI
 docker-compose.override.yml
 .docker/
@@ -195,13 +119,82 @@ docker-compose.override.yml
 logs/
 .tmp/
 
-# Data / Artifacts
+# Artifacts / Data
 *.csv
 *.dat
-*.db
-*.sqlite
-*.sqlite3
-data/
-datasets/
 *.tar.gz
 *.zip
+data/
+datasets/
+
+
+# ===========================================
+# Node / JavaScript / TypeScript / React
+# ===========================================
+
+# Node / package managers
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# React build output
+frontend/dist/
+frontend/build/
+frontend/.parcel-cache/
+frontend/.next/
+.next/
+out/
+
+# Vite / SWC / Bundlers
+*.tsbuildinfo
+.vite/
+.vite/deps/
+vite.config.js.timestamp*
+parcel-cache/
+.esbuild/
+.swc/
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Test / Coverage
+coverage/
+lcov.info
+
+# Environment files
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+frontend/.env.test
+
+# Browser artifacts
+*.map
+
+# Local dev servers
+*.local
+
+# Webstorm / JS editors
+frontend/.idea/
+
+# Cache
+frontend/.cache/
+.cache/
+
+# Build output (generic)
+public/build/
+public/assets/
+dist/
+build/
+
+# Misc
+*.tmp
+*.bak
+*.swp
+*.swo

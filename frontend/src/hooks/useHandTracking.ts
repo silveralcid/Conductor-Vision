@@ -4,8 +4,11 @@ import {
   HandLandmarker,
   type HandLandmarkerResult,
 } from "@mediapipe/tasks-vision";
+import { BeatDetector } from "../utils/beatDetector";
+import type { TrackingConfig } from "../config/trackingConfig";
 
 type HandPoint = { x: number; y: number } | null;
+const PALM_INDICES = [0, 5, 9, 13, 17];
 
 export type TrackingDiagnostics = {
   fps: number;
@@ -22,7 +25,7 @@ export type TrackingDiagnostics = {
   autoPaused: boolean;
 };
 
-export function useHandTracking() {
+export function useHandTracking(config: TrackingConfig) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const detector = useRef<HandLandmarker | null>(null);
 
@@ -43,6 +46,13 @@ export function useHandTracking() {
   });
 
   const lastFrameTime = useRef(performance.now());
+  const beatDetectorRef = useRef(new BeatDetector(config.beat));
+  const bpmSamplesRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    beatDetectorRef.current.updateConfig(config.beat);
+    bpmSamplesRef.current = [];
+  }, [config.beat]);
 
   // Webcam
   useEffect(() => {
@@ -101,33 +111,67 @@ export function useHandTracking() {
       const buffer = results.landmarks?.length ?? 0;
       let left: HandPoint = null;
       let right: HandPoint = null;
+      let rightBeatY: number | null = null;
 
       if (results.landmarks && video.videoWidth && video.videoHeight) {
         results.landmarks.forEach((landmarks, index) => {
           const wrist = landmarks[0];
           const handedness =
             results.handedness?.[index]?.[0]?.categoryName ?? "";
+          const handednessUpper = handedness.toUpperCase();
 
           const coords = {
             x: Math.round(wrist.x * video.videoWidth),
             y: Math.round(wrist.y * video.videoHeight),
           };
 
-          if (handedness.toUpperCase() === "LEFT") {
-            left = coords;
-          } else if (handedness.toUpperCase() === "RIGHT") {
+          const centroidNormalized =
+            PALM_INDICES.reduce((sum, idx) => sum + landmarks[idx].y, 0) /
+            PALM_INDICES.length;
+          const centroidYPixels = Math.round(
+            centroidNormalized * video.videoHeight
+          );
+          const setRight = () => {
             right = coords;
+            rightBeatY = centroidYPixels;
+          };
+
+          if (handednessUpper === "LEFT") {
+            left = coords;
+          } else if (handednessUpper === "RIGHT") {
+            setRight();
           } else if (!left) {
             left = coords;
           } else if (!right) {
-            right = coords;
+            setRight();
           }
         });
+      }
+
+      if (right && rightBeatY === null) {
+        rightBeatY = right.y;
       }
 
       const deltaMs = now - lastFrameTime.current;
       lastFrameTime.current = now;
       const fpsValue = deltaMs > 0 ? Math.round((1000 / deltaMs) * 10) / 10 : 0;
+      const bpm = beatDetectorRef.current.update(rightBeatY, now);
+      const windowSize = Math.max(1, Math.floor(config.beat.bpmAverageWindow));
+      if (bpm !== null) {
+        const samples = bpmSamplesRef.current;
+        samples.push(bpm);
+        while (samples.length > windowSize) samples.shift();
+      }
+
+      const averagedBpm =
+        bpmSamplesRef.current.length > 0
+          ? bpmSamplesRef.current.reduce((sum, value) => sum + value, 0) /
+            bpmSamplesRef.current.length
+          : bpm;
+      const roundedBpm =
+        averagedBpm !== null && averagedBpm !== undefined
+          ? Math.round(averagedBpm * 10) / 10
+          : averagedBpm;
 
       setDiagnostics((prev) => ({
         ...prev,
@@ -135,6 +179,7 @@ export function useHandTracking() {
         buffer,
         leftHand: left,
         rightHand: right,
+        bpm: roundedBpm ?? prev.bpm,
       }));
 
       frameId = requestAnimationFrame(loop);

@@ -8,8 +8,15 @@ export type BeatDetectionConfig = {
   bpmAverageWindow: number;
 };
 
+export type DistanceConfig = {
+  minSeparation: number;
+  maxSeparation: number;
+  averageWindow: number;
+};
+
 export type TrackingConfig = {
   beat: BeatDetectionConfig;
+  distance: DistanceConfig;
 };
 
 export const defaultTrackingConfig: TrackingConfig = {
@@ -21,5 +28,10 @@ export const defaultTrackingConfig: TrackingConfig = {
     minRecoveryPixels: 22,
     positionAlpha: 0.35,
     bpmAverageWindow: 4,
+  },
+  distance: {
+    minSeparation: 40,
+    maxSeparation: 600,
+    averageWindow: 4,
   },
 };

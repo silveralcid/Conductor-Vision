@@ -18,7 +18,7 @@ export function DebugOverlay({ diagnostics }: Props) {
     rightHand,
     recorderActive,
     bpm,
-    volume,
+    distance,
     musicStatus,
     playbackRate,
     volumeEnabled,
@@ -61,8 +61,8 @@ export function DebugOverlay({ diagnostics }: Props) {
         <span className="hud-value">{formatNullable(bpm)}</span>
       </div>
       <div className="hud-row">
-        <span className="hud-label">VOL</span>
-        <span className="hud-value">{formatNullable(volume, 2)}</span>
+        <span className="hud-label">DIS</span>
+        <span className="hud-value">{distance.toFixed(1)}</span>
       </div>
 
       <div className="hud-row">

@@ -17,7 +17,7 @@ export type TrackingDiagnostics = {
   rightHand: HandPoint;
   recorderActive: boolean;
   bpm: number | null;
-  volume: number | null;
+  distance: number;
   musicStatus: "IDLE" | "PLAYING" | "PAUSED";
   playbackRate: number;
   volumeEnabled: boolean;
@@ -37,7 +37,7 @@ export function useHandTracking(config: TrackingConfig) {
     rightHand: null,
     recorderActive: false,
     bpm: null,
-    volume: null,
+    distance: 0,
     musicStatus: "IDLE",
     playbackRate: 1,
     volumeEnabled: false,
@@ -48,11 +48,16 @@ export function useHandTracking(config: TrackingConfig) {
   const lastFrameTime = useRef(performance.now());
   const beatDetectorRef = useRef(new BeatDetector(config.beat));
   const bpmSamplesRef = useRef<number[]>([]);
+  const distanceSamplesRef = useRef<number[]>([]);
 
   useEffect(() => {
     beatDetectorRef.current.updateConfig(config.beat);
     bpmSamplesRef.current = [];
   }, [config.beat]);
+
+  useEffect(() => {
+    distanceSamplesRef.current = [];
+  }, [config.distance]);
 
   // Webcam
   useEffect(() => {
@@ -173,6 +178,34 @@ export function useHandTracking(config: TrackingConfig) {
           ? Math.round(averagedBpm * 10) / 10
           : averagedBpm;
 
+      let roundedDistance = 0;
+      if (left && right) {
+        const dx = Math.abs(right.x - left.x);
+        const min = config.distance.minSeparation;
+        const max = Math.max(min + 1, config.distance.maxSeparation);
+        const normalized =
+          dx <= min
+            ? 0
+            : dx >= max
+            ? 100
+            : ((dx - min) / (max - min)) * 100;
+
+        const distanceWindow = Math.max(
+          1,
+          Math.floor(config.distance.averageWindow)
+        );
+        const distanceSamples = distanceSamplesRef.current;
+        distanceSamples.push(normalized);
+        while (distanceSamples.length > distanceWindow) distanceSamples.shift();
+        const averagedDistance =
+          distanceSamples.reduce((sum, value) => sum + value, 0) /
+          distanceSamples.length;
+        roundedDistance = Math.round(averagedDistance * 10) / 10;
+      } else {
+        distanceSamplesRef.current = [];
+        roundedDistance = 0;
+      }
+
       setDiagnostics((prev) => ({
         ...prev,
         fps: fpsValue || prev.fps,
@@ -180,6 +213,7 @@ export function useHandTracking(config: TrackingConfig) {
         leftHand: left,
         rightHand: right,
         bpm: roundedBpm ?? prev.bpm,
+        distance: roundedDistance,
       }));
 
       frameId = requestAnimationFrame(loop);
@@ -187,7 +221,7 @@ export function useHandTracking(config: TrackingConfig) {
 
     frameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameId);
-  }, []);
+  }, [config]);
 
   return { videoRef, hands, diagnostics };
 }
